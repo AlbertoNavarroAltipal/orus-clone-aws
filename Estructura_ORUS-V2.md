@@ -1,6 +1,7 @@
 ```
 └── 📁orus-clone-aws
     └── 📁public
+        └── .DS_Store
         └── 📁avatars
             └── 1.png
         └── file.svg
@@ -22,6 +23,7 @@
         └── vercel.svg
         └── window.svg
     └── 📁src
+        └── .DS_Store
         └── 📁app
             └── 📁(auth)
                 └── 📁account-pending
@@ -43,6 +45,8 @@
                 └── 📁demo
                     └── page.tsx
                 └── 📁home
+                └── 📁home-externo
+                    └── page.tsx
                     └── 📁components
                         └── ActivityCard.tsx
                         └── AppDrawer.tsx
@@ -135,10 +139,12 @@
             └── mockData.ts
         └── 📁graphql
             └── 📁queries
+                └── users.ts
             └── 📁subscriptions
         └── 📁hooks
             └── useTheme.ts
         └── 📁lib
+            └── auth-errors.ts
             └── auth.ts
             └── utils.ts
         └── middleware.ts
@@ -153,6 +159,7 @@
             └── sidebar.ts
         └── 📁utils
             └── auth.ts
+    └── .DS_Store
     └── .env.local
     └── .gitignore
     └── eslint.config.mjs

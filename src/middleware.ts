@@ -1,4 +1,3 @@
-// src/middleware.ts
 import { type NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -37,8 +36,20 @@ const logMiddlewareAction = (action: string, details: MiddlewareLogDetails) => {
 
 export async function middleware(request: NextRequest) {
   try {
-    const session = (await auth()) as ExtendedSession;
+    // Extraer la URL actual y el pathname
     const { pathname } = request.nextUrl;
+
+    // Verificar si la URL tiene parámetros callbackUrl (común en autenticación)
+    const searchParams = request.nextUrl.searchParams;
+    const callbackUrl = searchParams.get("callbackUrl");
+
+    // Si estamos en /login y hay callbackUrl, dejamos que el flujo de autenticación continúe
+    if (pathname === "/login" && callbackUrl) {
+      return NextResponse.next();
+    }
+
+    // Obtener la sesión
+    const session = (await auth()) as ExtendedSession;
 
     logMiddlewareAction("Request", {
       pathname,
@@ -46,7 +57,7 @@ export async function middleware(request: NextRequest) {
       user: {
         email: session?.user?.email,
         cargo: session?.user?.cargo,
-        estado: session?.user?.estado
+        estado: session?.user?.estado,
       },
     });
 
@@ -60,17 +71,13 @@ export async function middleware(request: NextRequest) {
 
     // Si hay sesión
     if (session?.user) {
-
-      console.log("datos del usuario:", session.user);
-
       // Si el usuario está inactivo y no está en account-pending
       if (session.user.estado === false && pathname !== "/account-pending") {
         logMiddlewareAction("Inactive User Access", {
           email: session.user.email,
-          estado: session.user.estado
+          estado: session.user.estado,
         });
-
-       return NextResponse.redirect(new URL("/account-pending", request.url));
+        return NextResponse.redirect(new URL("/account-pending", request.url));
       }
 
       // Si el usuario está activo y trata de acceder a account-pending
@@ -78,25 +85,41 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/home", request.url));
       }
 
-      // Si el usuario está activo y trata de acceder a rutas públicas
-      if (session.user.estado === true && isPublicRoute(pathname)) {
+      // Si el usuario está activo y trata de acceder a rutas públicas (excepto al procesar callbacks)
+      if (
+        session.user.estado === true &&
+        isPublicRoute(pathname) &&
+        !callbackUrl
+      ) {
         return NextResponse.redirect(new URL("/home", request.url));
       }
 
       // Verificar tipo de usuario (interno/externo)
       const isCompanyUser = isCompanyEmail(session.user.email);
 
-      if (!isCompanyUser && !pathname.startsWith(APP_CONFIG.PROTECTED_PATHS.HOME_EXTERNAL)) {
-        return NextResponse.redirect(new URL(APP_CONFIG.PROTECTED_PATHS.HOME_EXTERNAL, request.url));
+      if (
+        !isCompanyUser &&
+        !pathname.startsWith(APP_CONFIG.PROTECTED_PATHS.HOME_EXTERNAL)
+      ) {
+        return NextResponse.redirect(
+          new URL(APP_CONFIG.PROTECTED_PATHS.HOME_EXTERNAL, request.url)
+        );
       }
 
-      if (isCompanyUser && pathname.startsWith(APP_CONFIG.PROTECTED_PATHS.HOME_EXTERNAL)) {
-        return NextResponse.redirect(new URL(APP_CONFIG.PROTECTED_PATHS.HOME, request.url));
+      if (
+        isCompanyUser &&
+        pathname.startsWith(APP_CONFIG.PROTECTED_PATHS.HOME_EXTERNAL)
+      ) {
+        return NextResponse.redirect(
+          new URL(APP_CONFIG.PROTECTED_PATHS.HOME, request.url)
+        );
       }
 
       // Verificar permisos de admin
-      if (pathname.startsWith(APP_CONFIG.PROTECTED_PATHS.ADMIN) && 
-          session.user.cargo?.toLowerCase() !== "admin") {
+      if (
+        pathname.startsWith(APP_CONFIG.PROTECTED_PATHS.ADMIN) &&
+        session.user.cargo?.toLowerCase() !== "admin"
+      ) {
         return NextResponse.redirect(new URL("/forbidden", request.url));
       }
     }

@@ -62,23 +62,25 @@ export default function LoginPage() {
         redirect: false,
       });
 
+      if (result?.error) {
+        console.log("Login error:", result.error);
+        toast.error("Credenciales inválidas");
+        return;
+      }
+
       if (result?.ok) {
-        // Verificamos si hay una redirección especial
-        const redirectUrl = result.url;
-        if (redirectUrl?.includes("/account-pending")) {
-          toast.error("Tu cuenta está pendiente de activación");
+        toast.success("Inicio de sesión exitoso");
+
+        // Verificamos si hay una URL específica en el resultado
+        if (result.url && result.url.includes("/account-pending")) {
           router.push("/account-pending");
           return;
         }
 
-        toast.success("Inicio de sesión exitoso");
-        router.push("/home");
+        // Usar router.replace en lugar de router.push para una redirección completa
+        router.replace("/home");
+        // Aseguramos que la UI se actualice
         router.refresh();
-        return;
-      }
-
-      if (result?.error) {
-        toast.error("Credenciales inválidas");
         return;
       }
     } catch (err) {

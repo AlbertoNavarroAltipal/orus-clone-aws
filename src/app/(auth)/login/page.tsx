@@ -89,17 +89,41 @@ export default function LoginPage() {
     }
   };
 
+  // Actualización del handler para Google Sign In
   const handleGoogleSignIn = async () => {
     try {
+      console.log("Iniciando sesión con Google...");
+      toast.loading("Iniciando sesión con Google...");
+
       const result = await signIn("google", {
         redirect: false,
         callbackUrl: "/home",
       });
 
+      console.log("Resultado de inicio de sesión con Google:", result);
+
       if (result?.error) {
+        toast.dismiss();
         toast.error("Error al iniciar sesión con Google");
+        console.error("Error de Google Sign In:", result.error);
+        return;
+      }
+
+      if (result?.ok) {
+        toast.dismiss();
+        toast.success("Inicio de sesión con Google exitoso");
+
+        if (result.url && result.url.includes("/account-pending")) {
+          router.replace("/account-pending");
+          return;
+        }
+
+        console.log("Redirigiendo a home después de login con Google");
+        router.replace("/home");
+        setTimeout(() => router.refresh(), 100);
       }
     } catch (error) {
+      toast.dismiss();
       console.error("Google sign in error:", error);
       toast.error("Error al iniciar sesión con Google");
     }

@@ -116,6 +116,7 @@ const CHECK_EMAIL_QUERY = `
 `;
 
 // Mutación para crear un nuevo usuario
+// Mutación para crear un nuevo usuario
 const REGISTER_USER_MUTATION = `
   mutation CreateMaestroUsuarios(
     $dni: String!,
@@ -124,7 +125,8 @@ const REGISTER_USER_MUTATION = `
     $numero_contacto: AWSPhone!, 
     $contrasena: String!, 
     $fecha_creacion: AWSDateTime!, 
-    $estado: Boolean!
+    $estado: Boolean!,
+    $foto_perfil: String
   ) {
     createMaestroUsuarios(input: {
       dni: $dni, 
@@ -133,7 +135,8 @@ const REGISTER_USER_MUTATION = `
       numero_contacto: $numero_contacto, 
       contrasena: $contrasena, 
       fecha_creacion: $fecha_creacion, 
-      estado: $estado
+      estado: $estado,
+      foto_perfil: $foto_perfil
     }) {
       dni
       email
@@ -141,6 +144,7 @@ const REGISTER_USER_MUTATION = `
       numero_contacto
       estado
       fecha_creacion
+      foto_perfil
     }
   }
 `;
@@ -242,6 +246,7 @@ async function generateUniqueId(): Promise<string> {
 }
 
 // Función para crear un nuevo usuario desde la autenticación de Google
+// Función para crear un nuevo usuario desde la autenticación de Google
 async function createUserFromGoogle(
   profile: any
 ): Promise<MaestroUsuario | null> {
@@ -255,7 +260,7 @@ async function createUserFromGoogle(
     console.log("DNI generado:", dni);
 
     // Generar una contraseña aleatoria (no será usada por el usuario)
-    const randomPassword = "$Alt1p4l.2025***";
+    const randomPassword = Math.random().toString(36).substring(2, 12);
     const hashedPassword = SHA256(randomPassword).toString();
 
     // Número de teléfono fijo válido para AWSPhone
@@ -270,6 +275,7 @@ async function createUserFromGoogle(
       contrasena: hashedPassword,
       estado: true,
       fecha_creacion: new Date().toISOString(),
+      foto_perfil: profile.picture || null, // Agregamos la foto de perfil
     };
 
     console.log(

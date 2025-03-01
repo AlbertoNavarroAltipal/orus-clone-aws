@@ -10,8 +10,7 @@ const UserMenuSkeleton = () => {
       <button className="group flex items-center gap-3 p-2 rounded-lg">
         <div className="relative">
           {/* Avatar skeleton */}
-          <div className="relative h-9 w-9 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 animate-pulse">
-          </div>
+          <div className="relative h-9 w-9 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
           {/* Online status skeleton */}
           <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
         </div>
@@ -46,7 +45,7 @@ const UserMenu = ({ session, isLoading }) => {
           {/* Avatar con efecto de borde */}
           <div className="relative h-9 w-9 rounded-full overflow-hidden ring-2 ring-white/20 group-hover:ring-white/30 transition-all duration-200">
             <Image
-              src={session.user.image || "/avatars/default.png"}
+              src={session.user.foto_perfil || "/avatars/default.png"}
               alt="Profile"
               fill
               className="object-cover"
@@ -58,7 +57,7 @@ const UserMenu = ({ session, isLoading }) => {
 
         <div className="hidden md:block text-left">
           <p className="text-sm font-medium text-white line-clamp-1">
-            {session.user.name}
+            {session.user.nombre_completo}
           </p>
           <p className="text-xs text-white/70 line-clamp-1">
             {session.user.email}
@@ -77,7 +76,7 @@ const UserMenu = ({ session, isLoading }) => {
               <div className="relative">
                 <div className="h-16 w-16 rounded-full overflow-hidden ring-4 ring-white/30 dark:ring-white/20">
                   <Image
-                    src={session.user.image || "/avatars/default.png"}
+                    src={session.user.foto_perfil || "/avatars/default.png"}
                     alt="Profile"
                     fill
                     className="object-cover rounded-full"
@@ -88,7 +87,7 @@ const UserMenu = ({ session, isLoading }) => {
 
               <div className="flex-1 min-w-0 pt-1">
                 <h3 className="text-lg font-semibold text-white mb-0.5 line-clamp-1">
-                  {session.user.name}
+                  {session.user.nombre_completo}
                 </h3>
                 <p className="text-sm text-white/80 line-clamp-1">
                   {session.user.email}

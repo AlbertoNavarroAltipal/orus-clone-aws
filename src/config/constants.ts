@@ -31,6 +31,9 @@ export const APP_CONFIG = {
     "/two-factor",
     "/session-expired",
     "/account-pending",
+    "/user-inactive",       // Añadir esta ruta
+  "/unauthorized-domain", // Añadir esta ruta
+  "/auth/error"           // Añadir esta ruta
   ] as string[], // Cast explícito a array de strings para mejor tipado
 
   /**

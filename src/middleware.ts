@@ -44,7 +44,24 @@ export async function middleware(request: NextRequest) {
     const callbackUrl = searchParams.get("callbackUrl");
 
     // Si estamos en /login y hay callbackUrl, dejamos que el flujo de autenticación continúe
+    if (
+      pathname === "/unauthorized-domain" ||
+      pathname === "/user-inactive" ||
+      pathname === "/error"
+    ) {
+      return NextResponse.next();
+    }
+
+    // Si estamos en /login y hay callbackUrl, dejamos que el flujo de autenticación continúe
     if (pathname === "/login" && callbackUrl) {
+      // Si el callbackUrl es una ruta de error de autenticación, redirigir directamente
+      if (
+        callbackUrl.includes("/unauthorized-domain") ||
+        callbackUrl.includes("/user-inactive") ||
+        callbackUrl.includes("/error")
+      ) {
+        return NextResponse.redirect(new URL(callbackUrl, request.url));
+      }
       return NextResponse.next();
     }
 

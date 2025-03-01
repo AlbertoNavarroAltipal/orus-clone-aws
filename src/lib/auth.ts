@@ -1,13 +1,26 @@
 // src/lib/auth.ts
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
-import type { DefaultSession, User as NextAuthUser } from "next-auth";
+import type { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { generateClient } from "aws-amplify/api";
-import type { GraphQLQuery } from "@aws-amplify/api";
+import type { GraphQLResult } from "@aws-amplify/api";
 import { SHA256 } from "crypto-js";
 import "@/config/aws-config";
+
+// Crear clase AuthError para no depender de una importación externa
+export class AuthError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = "AuthError";
+  }
+}
+
+// Obtener dominios permitidos de variables de entorno
+const ALLOWED_EMAIL_DOMAINS = process.env.ALLOWED_EMAIL_DOMAINS
+  ? process.env.ALLOWED_EMAIL_DOMAINS.split(",")
+  : ["altipal.com.co", "altipal.com"];
 
 // Tipos e Interfaces
 interface MaestroUsuario {
@@ -31,12 +44,11 @@ interface MaestroUsuario {
   codigo_cedi?: string;
 }
 
+// Extensión de los tipos de NextAuth para incluir campos personalizados
 declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
-      id: string;
       dni: string;
-      email: string;
       nombre_completo: string;
       numero_contacto: string;
       fecha_nacimiento?: string;
@@ -54,8 +66,8 @@ declare module "next-auth" {
     } & DefaultSession["user"];
   }
 
-  interface User extends NextAuthUser {
-    id: string;
+  // Definición de User con los campos adicionales
+  interface User {
     dni: string;
     nombre_completo: string;
     numero_contacto: string;
@@ -116,7 +128,6 @@ const CHECK_EMAIL_QUERY = `
 `;
 
 // Mutación para crear un nuevo usuario
-// Mutación para crear un nuevo usuario
 const REGISTER_USER_MUTATION = `
   mutation CreateMaestroUsuarios(
     $dni: String!,
@@ -149,19 +160,52 @@ const REGISTER_USER_MUTATION = `
   }
 `;
 
+// Mutación para registrar intentos de acceso
+const LOG_AUTH_ATTEMPT_MUTATION = `
+  mutation CreateAuthLog(
+    $email: String!,
+    $timestamp: AWSDateTime!,
+    $ipAddress: String,
+    $reason: String!,
+    $success: Boolean!,
+    $provider: String!,
+    $userAgent: String,
+    $details: String
+  ) {
+    createAuthLog(input: {
+      email: $email,
+      timestamp: $timestamp,
+      ipAddress: $ipAddress,
+      reason: $reason,
+      success: $success,
+      provider: $provider,
+      userAgent: $userAgent,
+      details: $details
+    }) {
+      id
+      email
+      timestamp
+      success
+    }
+  }
+`;
+
 // Función para obtener usuario por email
 async function getUser(email: string): Promise<MaestroUsuario | null> {
+  if (!email) {
+    console.error("Email no proporcionado para buscar usuario");
+    return null;
+  }
+
   const client = generateClient();
   try {
     console.log(`Buscando usuario con email: ${email}`);
 
-    const response = await client.graphql<
-      GraphQLQuery<{ getMaestroUsuariosByEmail: MaestroUsuario }>
-    >({
+    const response = (await client.graphql({
       query: GET_USER_QUERY,
       variables: { email: email.toLowerCase() },
       authMode: "apiKey",
-    });
+    })) as GraphQLResult<{ getMaestroUsuariosByEmail: MaestroUsuario }>;
 
     console.log("Respuesta de consulta de usuario:", response);
 
@@ -187,11 +231,11 @@ async function checkUserExists(email: string): Promise<boolean> {
   try {
     console.log(`Verificando si existe usuario con email: ${email}`);
 
-    const response = await client.graphql({
+    const response = (await client.graphql({
       query: CHECK_EMAIL_QUERY,
       variables: { email: email.toLowerCase() },
       authMode: "apiKey",
-    });
+    })) as GraphQLResult<{ listMaestroUsuarios: { items: any[] } }>;
 
     const exists = response.data?.listMaestroUsuarios?.items.length > 0;
     console.log(`Usuario ${email} existe: ${exists}`);
@@ -202,13 +246,84 @@ async function checkUserExists(email: string): Promise<boolean> {
   }
 }
 
-// Función para generar un DNI aleatorio único
-async function generateUniqueId(): Promise<string> {
-  // Genera un ID de 10 dígitos
-  const generateId = () =>
-    Math.floor(1000000000 + Math.random() * 9000000000).toString();
+// Función para registrar intentos de autenticación
+async function logAuthenticationAttempt(data: {
+  email: string;
+  timestamp: string;
+  ipAddress?: string;
+  reason: string;
+  success: boolean;
+  provider: string;
+  userAgent?: string;
+  details?: string;
+}): Promise<boolean> {
+  const client = generateClient();
+  try {
+    console.log(
+      `Registrando intento de autenticación: ${data.email}, Motivo: ${data.reason}, Éxito: ${data.success}`
+    );
 
-  let id = generateId();
+    const response = (await client.graphql({
+      query: LOG_AUTH_ATTEMPT_MUTATION,
+      variables: {
+        email: data.email.toLowerCase(),
+        timestamp: data.timestamp,
+        ipAddress: data.ipAddress || "unknown",
+        reason: data.reason,
+        success: data.success,
+        provider: data.provider,
+        userAgent: data.userAgent || null,
+        details: data.details || null,
+      },
+      authMode: "apiKey",
+    })) as GraphQLResult<{ createAuthLog: { id: string } }>;
+
+    console.log(
+      "Registro de autenticación creado:",
+      response.data?.createAuthLog?.id
+    );
+    return true;
+  } catch (error) {
+    console.error("Error al registrar intento de autenticación:", error);
+    return false;
+  }
+}
+
+// Función para verificar si un email pertenece a un dominio permitido
+function isAllowedDomain(email: string): boolean {
+  if (!email) return false;
+
+  return ALLOWED_EMAIL_DOMAINS.some((domain) =>
+    email.toLowerCase().endsWith(`@${domain}`)
+  );
+}
+
+// Función para generar un DNI basado en el email
+function generateDniFromEmail(email: string): string {
+  // Extraer la parte antes del @ y reemplazar puntos por guiones
+  const parts = email.split("@");
+  const username = parts[0].replace(/\./g, "-").toLowerCase();
+
+  // Si es demasiado largo, truncar a 10 caracteres
+  if (username.length > 20) {
+    return username.substring(0, 20);
+  }
+
+  // Si es demasiado corto, rellenar con números aleatorios
+  if (username.length < 20) {
+    const padding = Math.floor(Math.random() * 20 ** (20 - username.length))
+      .toString()
+      .padStart(10 - username.length, "0");
+    return username + "-" + padding;
+  }
+
+  return username;
+}
+
+// Función para generar un DNI aleatorio único
+async function generateUniqueId(email: string): Promise<string> {
+  // Primero intentamos generar un DNI basado en el email
+  let id = generateDniFromEmail(email);
   let isUnique = false;
 
   const client = generateClient();
@@ -216,7 +331,7 @@ async function generateUniqueId(): Promise<string> {
   // Verificar que no exista este ID en la base de datos
   while (!isUnique) {
     try {
-      const response = await client.graphql({
+      const response = (await client.graphql({
         query: `
           query GetByDni($dni: String) {
             listMaestroUsuarios(filter: {dni: {eq: $dni}}) {
@@ -228,12 +343,13 @@ async function generateUniqueId(): Promise<string> {
         `,
         variables: { dni: id },
         authMode: "apiKey",
-      });
+      })) as GraphQLResult<{ listMaestroUsuarios: { items: any[] } }>;
 
       if (response.data?.listMaestroUsuarios?.items.length === 0) {
         isUnique = true;
       } else {
-        id = generateId();
+        // Si ya existe, generar un nuevo ID aleatorio
+        id = Math.floor(1000000000 + Math.random() * 9000000000).toString();
       }
     } catch (error) {
       console.error("Error al verificar unicidad de ID:", error);
@@ -246,21 +362,27 @@ async function generateUniqueId(): Promise<string> {
 }
 
 // Función para crear un nuevo usuario desde la autenticación de Google
-// Función para crear un nuevo usuario desde la autenticación de Google
 async function createUserFromGoogle(
-  profile: any
+  profile: any | undefined
 ): Promise<MaestroUsuario | null> {
+  if (!profile || !profile.email) {
+    console.error("El perfil de Google no contiene información válida");
+    return null;
+  }
+
   const client = generateClient();
 
   try {
     console.log("Creando nuevo usuario desde Google:", profile);
 
-    // Generar un DNI único para el usuario (asegúrate de que sea exactamente de 10 dígitos)
-    const dni = await generateUniqueId();
+    // Generar un DNI único para el usuario basado en el email
+    const dni = await generateUniqueId(profile.email);
     console.log("DNI generado:", dni);
 
     // Generar una contraseña aleatoria (no será usada por el usuario)
-    const randomPassword = Math.random().toString(36).substring(2, 12);
+    const currentYear = new Date().getFullYear();
+    const randomPassword = `$ALt1p4L.${currentYear}***`;
+
     const hashedPassword = SHA256(randomPassword).toString();
 
     // Número de teléfono fijo válido para AWSPhone
@@ -284,11 +406,11 @@ async function createUserFromGoogle(
     );
 
     // Ejecutar la mutación GraphQL para crear el usuario
-    const response = await client.graphql({
+    const response = (await client.graphql({
       query: REGISTER_USER_MUTATION,
       variables: registerVariables,
       authMode: "apiKey",
-    });
+    })) as GraphQLResult<{ createMaestroUsuarios: MaestroUsuario }>;
 
     // Verificar la respuesta
     console.log(
@@ -301,20 +423,20 @@ async function createUserFromGoogle(
         "Usuario creado exitosamente:",
         response.data.createMaestroUsuarios
       );
-      return response.data.createMaestroUsuarios as MaestroUsuario;
+      return response.data.createMaestroUsuarios;
     } else if (response.errors) {
       console.error("Errores de GraphQL:", response.errors);
-      response.errors.forEach((err) => {
+      response.errors.forEach((err: any) => {
         console.error(`- Error: ${err.message}`);
       });
     }
 
     console.error("No se pudo crear el usuario desde Google");
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al crear usuario desde Google:", error);
     if (error.errors) {
-      error.errors.forEach((err) => {
+      error.errors.forEach((err: any) => {
         console.error("Error de GraphQL detallado:", err.message);
       });
     }
@@ -333,31 +455,73 @@ export const config = {
         try {
           console.log("Iniciando proceso de autorización con credenciales");
 
-          if (!credentials?.email || !credentials?.password) {
+          // Asegurarse de que las credenciales no sean undefined
+          const email = credentials?.email;
+          const password = credentials?.password;
+
+          if (!email || !password) {
             console.log("Credenciales incompletas");
             return null;
           }
 
-          console.log(`Autenticando a: ${credentials.email}`);
-          const user = await getUser(credentials.email);
+          console.log(`Autenticando a: ${email}`);
+          const user = await getUser(email);
 
           if (!user) {
             console.log("Usuario no encontrado");
+            // Registrar intento fallido
+            await logAuthenticationAttempt({
+              email: email,
+              timestamp: new Date().toISOString(),
+              reason: "user_not_found",
+              success: false,
+              provider: "credentials",
+            });
             return null;
           }
 
           console.log("Usuario encontrado, verificando contraseña");
-          const hashedPassword = SHA256(credentials.password).toString();
+          const hashedPassword = SHA256(password).toString();
 
           if (user.contrasena !== hashedPassword) {
             console.log("Contraseña incorrecta");
+            // Registrar intento fallido
+            await logAuthenticationAttempt({
+              email: email,
+              timestamp: new Date().toISOString(),
+              reason: "invalid_password",
+              success: false,
+              provider: "credentials",
+            });
+            return null;
+          }
+
+          // Verificar si el usuario está activo
+          if (!user.estado) {
+            console.log("Usuario inactivo");
+            // Registrar intento fallido
+            await logAuthenticationAttempt({
+              email: email,
+              timestamp: new Date().toISOString(),
+              reason: "user_inactive",
+              success: false,
+              provider: "credentials",
+            });
             return null;
           }
 
           console.log("Autenticación exitosa");
+          // Registrar intento exitoso
+          await logAuthenticationAttempt({
+            email: email,
+            timestamp: new Date().toISOString(),
+            reason: "success",
+            success: true,
+            provider: "credentials",
+          });
 
           return {
-            id: user.dni,
+            id: user.dni, // Usar DNI como ID ya que no tenemos campo id
             email: user.email,
             dni: user.dni,
             nombre_completo: user.nombre_completo,
@@ -377,6 +541,21 @@ export const config = {
           };
         } catch (error) {
           console.error("Auth error:", error);
+          // Registrar error del servidor
+          try {
+            await logAuthenticationAttempt({
+              email: credentials?.email || "unknown",
+              timestamp: new Date().toISOString(),
+              reason: "server_error",
+              success: false,
+              provider: "credentials",
+            });
+          } catch (logError) {
+            console.error(
+              "Error al registrar fallo de autenticación:",
+              logError
+            );
+          }
           return null;
         }
       },
@@ -384,16 +563,47 @@ export const config = {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          // Dominio principal de la empresa (aunque permitiremos múltiples dominios en el callback signIn)
+          hd: ALLOWED_EMAIL_DOMAINS[0],
+          // Forzar la selección de cuenta siempre
+          prompt: "select_account",
+          // Definir los alcances (scopes) que necesitas
+          scope: "openid email profile",
+          // Acceso offline para obtener refresh tokens si es necesario
+          access_type: "offline",
+          // Configurar el modo de visualización
+          display: "popup",
+          // Establecer el tipo de respuesta
+          response_type: "code",
+          // Incluir un estado para seguridad CSRF
+          state: process.env.NEXTAUTH_SECRET
+            ? Buffer.from(
+                `${process.env.NEXTAUTH_SECRET}:${Date.now()}`
+              ).toString("base64")
+            : undefined,
+        },
+      },
       profile(profile) {
         console.log("Perfil de Google recibido:", profile);
+
+        // Validar el dominio del email aquí como verificación adicional
+        const email = profile.email;
+        const domainAllowed = isAllowedDomain(email);
+
+        if (!domainAllowed) {
+          console.warn(`Email no autorizado detectado en profile: ${email}`);
+          // No lanzamos error aquí, lo manejamos en el callback signIn
+        }
 
         return {
           id: profile.sub,
           email: profile.email,
           name: profile.name,
           image: profile.picture,
-          // Estos campos se agregarán en signIn
-          dni: "",
+          // Estos campos se completarán/actualizarán en signIn
+          dni: "", // Será actualizado en signIn
           nombre_completo: profile.name,
           numero_contacto: "",
           fecha_creacion: new Date().toISOString(),
@@ -406,12 +616,33 @@ export const config = {
     async signIn({ user, account, profile }) {
       console.log("Proceso de signIn:", {
         provider: account?.provider,
-        email: user.email,
+        email: user?.email,
       });
 
       // Solo procesamos la lógica especial para Google
-      if (account?.provider === "google" && user.email) {
+      if (account?.provider === "google" && user?.email) {
         try {
+          // Verificar si el email pertenece a un dominio permitido
+          if (!isAllowedDomain(user.email)) {
+            console.log(
+              `Acceso denegado: ${user.email} no pertenece a un dominio autorizado`
+            );
+
+            // Registrar intento fallido
+            await logAuthenticationAttempt({
+              email: user.email,
+              timestamp: new Date().toISOString(),
+              reason: "domain_unauthorized",
+              success: false,
+              provider: "google",
+            });
+
+            // Redirigir a la página personalizada de error
+            return `/unauthorized-domain?email=${encodeURIComponent(
+              user.email
+            )}`;
+          }
+
           // Verificar si el usuario ya existe en nuestra DB
           console.log(
             `Verificando si el usuario de Google ${user.email} ya existe...`
@@ -448,6 +679,15 @@ export const config = {
                   user.numero_contacto = newUser.numero_contacto;
                   user.fecha_creacion = newUser.fecha_creacion;
                   user.estado = newUser.estado;
+
+                  // Registrar creación exitosa
+                  await logAuthenticationAttempt({
+                    email: user.email,
+                    timestamp: new Date().toISOString(),
+                    reason: "user_created",
+                    success: true,
+                    provider: "google",
+                  });
                 } else {
                   console.error(
                     `Intento ${attemptCount} fallido: No se pudo crear el usuario`
@@ -459,14 +699,24 @@ export const config = {
             }
 
             if (!newUser) {
-              // Si después de varios intentos no se pudo crear, seguimos con datos básicos
+              // Si después de varios intentos no se pudo crear, registramos el error
               console.warn(
                 "No se pudo crear usuario en la DB después de varios intentos, usando datos básicos"
               );
-              user.id = profile.sub || Math.random().toString(36).substring(2);
-              user.dni = user.id;
-              user.nombre_completo =
-                profile.name || user.name || "Usuario Google";
+
+              await logAuthenticationAttempt({
+                email: user.email,
+                timestamp: new Date().toISOString(),
+                reason: "user_creation_failed",
+                success: false,
+                provider: "google",
+              });
+
+              // Generar DNI basado en el email para usar como ID
+              const tempDni = generateDniFromEmail(user.email);
+              user.id = tempDni;
+              user.dni = tempDni;
+              user.nombre_completo = profile?.name || "Usuario Google";
               user.numero_contacto = "+573101234567";
               user.fecha_creacion = new Date().toISOString();
               user.estado = true;
@@ -482,8 +732,26 @@ export const config = {
               console.log(
                 `Datos del usuario ${user.email} obtenidos correctamente`
               );
+
+              // Verificar si el usuario está activo
+              if (!existingUser.estado) {
+                console.log("Usuario inactivo");
+
+                // Registrar intento fallido
+                await logAuthenticationAttempt({
+                  email: user.email,
+                  timestamp: new Date().toISOString(),
+                  reason: "user_inactive",
+                  success: false,
+                  provider: "google",
+                });
+
+                // Redirigir a página de usuario inactivo
+                return `/user-inactive?email=${encodeURIComponent(user.email)}`;
+              }
+
               // Actualizar los datos del usuario con la información de nuestra DB
-              user.id = existingUser.dni;
+              user.id = existingUser.dni; // Usar DNI como ID
               user.dni = existingUser.dni;
               user.nombre_completo = existingUser.nombre_completo;
               user.numero_contacto = existingUser.numero_contacto;
@@ -499,15 +767,35 @@ export const config = {
               user.gerencia = existingUser.gerencia;
               user.sitio = existingUser.sitio;
               user.codigo_cedi = existingUser.codigo_cedi;
+
+              // Registrar autenticación exitosa
+              await logAuthenticationAttempt({
+                email: user.email,
+                timestamp: new Date().toISOString(),
+                reason: "success",
+                success: true,
+                provider: "google",
+              });
             } else {
               // Si por alguna razón no se encuentra, usamos datos básicos
               console.warn(
                 `Usuario ${user.email} existe pero no se pudo obtener, usando datos básicos`
               );
-              user.id = profile.sub || Math.random().toString(36).substring(2);
-              user.dni = user.id;
-              user.nombre_completo =
-                profile.name || user.name || "Usuario Google";
+
+              // Registrar anomalía
+              await logAuthenticationAttempt({
+                email: user.email,
+                timestamp: new Date().toISOString(),
+                reason: "user_fetch_failed",
+                success: false,
+                provider: "google",
+              });
+
+              // Generar DNI basado en el email para usar como ID
+              const tempDni = generateDniFromEmail(user.email);
+              user.id = tempDni;
+              user.dni = tempDni;
+              user.nombre_completo = profile?.name || "Usuario Google";
               user.numero_contacto = "+573101234567";
               user.fecha_creacion = new Date().toISOString();
               user.estado = true;
@@ -515,17 +803,38 @@ export const config = {
           }
         } catch (error) {
           console.error("Error general en signIn de Google:", error);
+
+          // Registrar error del servidor
+          try {
+            await logAuthenticationAttempt({
+              email: user.email || "unknown",
+              timestamp: new Date().toISOString(),
+              reason: "server_error",
+              success: false,
+              provider: "google",
+            });
+          } catch (logError) {
+            console.error(
+              "Error al registrar fallo de autenticación:",
+              logError
+            );
+          }
+
           // No rechazamos la autenticación, permitimos continuar con datos básicos
-          user.id = profile.sub || Math.random().toString(36).substring(2);
-          user.dni = user.id;
-          user.nombre_completo = profile.name || user.name || "Usuario Google";
+          // Generar DNI basado en el email para usar como ID
+          const tempDni = user.email
+            ? generateDniFromEmail(user.email)
+            : Math.random().toString(36).substring(2, 12);
+          user.id = tempDni;
+          user.dni = tempDni;
+          user.nombre_completo = profile?.name || "Usuario Google";
           user.numero_contacto = "+573101234567";
           user.fecha_creacion = new Date().toISOString();
           user.estado = true;
         }
       }
 
-      // Siempre permitimos el inicio de sesión
+      // Siempre permitimos el inicio de sesión si ha pasado todas las verificaciones
       return true;
     },
     async jwt({ token, user }) {
@@ -556,7 +865,6 @@ export const config = {
         session.user = {
           ...session.user,
           id: token.id as string,
-          email: token.email as string,
           dni: token.dni as string,
           nombre_completo: token.nombre_completo as string,
           numero_contacto: token.numero_contacto as string,
@@ -584,6 +892,15 @@ export const config = {
       const normalizedUrl = url.replace(/\/en\//, "/");
       const normalizedBaseUrl = baseUrl.replace(/\/en\//, "/");
 
+      // Si la URL es para una página de error personalizada, permitirla directamente
+      if (
+        normalizedUrl.includes("/unauthorized-domain") ||
+        normalizedUrl.includes("/user-inactive") ||
+        normalizedUrl.includes("/auth/error")
+      ) {
+        return normalizedUrl;
+      }
+
       // Si la URL comienza con la URL base, permite la redirección
       if (normalizedUrl.startsWith(normalizedBaseUrl)) {
         // Quitar los posibles parámetros callbackUrl
@@ -602,7 +919,9 @@ export const config = {
   },
   pages: {
     signIn: "/login",
-    error: "/login",
+    error: "/auth/error",
+    // No es necesario incluir unauthorized-domain y user-inactive aquí,
+    // ya que las manejamos a través del callback signIn
   },
   session: {
     strategy: "jwt",

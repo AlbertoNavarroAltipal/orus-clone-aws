@@ -6,8 +6,14 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 
 const LAST_ACTIVE_KEY = "lastActiveTime";
-const INACTIVITY_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_INACTIVITY_TIMEOUT || "180000", 10);
-const CHECK_INTERVAL = parseInt(process.env.NEXT_PUBLIC_CHECK_INTERVAL || "10000", 10);
+const INACTIVITY_TIMEOUT = parseInt(
+  process.env.NEXT_PUBLIC_INACTIVITY_TIMEOUT || "180000",
+  10
+);
+const CHECK_INTERVAL = parseInt(
+  process.env.NEXT_PUBLIC_CHECK_INTERVAL || "10000",
+  10
+);
 
 interface SessionExpirationProviderProps {
   children: React.ReactNode;
@@ -41,8 +47,10 @@ export function SessionExpirationProvider({
       // Verificar tanto la expiración como la inactividad
       if (now >= expiresAt || now - lastActive > INACTIVITY_TIMEOUT) {
         if (pathname !== "/session-expired") {
-          signOut({ redirect: false });
-          router.push("/session-expired");
+          console.log("Session expired, redirecting to /session-expired");
+          // alert("Sesión expirada, redirigiendo a /session-expired");
+          // signOut({ redirect: false });
+          // router.push("/session-expired");
         }
         return true;
       }

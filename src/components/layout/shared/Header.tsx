@@ -86,7 +86,6 @@ export const Header: FC = () => {
     }
   };
 
-
   // estado de true o false mientras carga la sesión de usuario usando useSession();
   const validateSession = () => {
     if (session) {
@@ -94,8 +93,6 @@ export const Header: FC = () => {
     }
     return true;
   };
-
-
 
   return (
     <header

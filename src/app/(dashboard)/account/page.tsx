@@ -308,7 +308,7 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-72px)] bg-white dark:bg-[#0f1b2d] mt-7">
+    <div className="min-h-[calc(100vh-72px)] bg-white dark:bg-[#0f1b2d]">
       {/* Breadcrumb */}
       {/* <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#232f3e] py-4 px-6">
         <div className="flex items-center text-sm">

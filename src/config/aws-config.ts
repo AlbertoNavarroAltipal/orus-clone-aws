@@ -5,10 +5,10 @@ Amplify.configure({
   API: {
     GraphQL: {
       endpoint:
-        "https://6lga4ennnfbrbjemnpfot6f4py.appsync-api.us-east-1.amazonaws.com/graphql",
+        "https://stzckega5fe2niod2pwjgmzp5a.appsync-api.us-east-1.amazonaws.com/graphql",
       region: "us-east-1",
       defaultAuthMode: "apiKey",
-      apiKey: "da2-6gli56bkfvcuffyx73uu6vhzwi",
+      apiKey: "da2-5hehusj7p5bj7de4u4po7xlc44",
     },
   },
 });

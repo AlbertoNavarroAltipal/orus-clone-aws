@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import { Icon } from "@/components/ui/Icon";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
@@ -29,7 +29,7 @@ export const PostTextArea: React.FC<PostTextAreaProps> = ({
         onChange={onContentChange}
         onFocus={onFocus}
         placeholder="¿Qué quieres compartir?"
-        className="w-full min-h-[60px] bg-[#2a3f59] rounded-lg px-4 py-3 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-1 focus:ring-[#ec7211]"
+        className="w-full min-h-[60px] bg-[#2a3f59] rounded-lg px-4 py-3 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-1 focus:ring-[#004f9f]"
         style={{ height: "auto" }}
       />
 

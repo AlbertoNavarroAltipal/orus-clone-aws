@@ -31,7 +31,7 @@ const demoMenuItems: MenuItem[] = [
     icon: "barChart3",
     badge: {
       text: 3,
-      color: "bg-[#ec7211]",
+      color: "bg-[#004f9f]",
     },
     children: [
       {

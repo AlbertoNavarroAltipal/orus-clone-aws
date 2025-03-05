@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { FC, useState } from 'react';
+import { FC, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 
 interface PostPrivacy {
@@ -64,9 +64,10 @@ export const PrivacySelector: FC<PrivacySelectorProps> = ({
 }) => {
   const [searchText, setSearchText] = useState("");
 
-  const filteredOptions = privacyOptions.filter(option => 
-    option.label.toLowerCase().includes(searchText.toLowerCase()) ||
-    option.description.toLowerCase().includes(searchText.toLowerCase())
+  const filteredOptions = privacyOptions.filter(
+    (option) =>
+      option.label.toLowerCase().includes(searchText.toLowerCase()) ||
+      option.description.toLowerCase().includes(searchText.toLowerCase())
   );
 
   return (
@@ -91,12 +92,12 @@ export const PrivacySelector: FC<PrivacySelectorProps> = ({
                 placeholder="Buscar nivel de privacidad..."
                 className="w-full bg-[#35495e] rounded-lg px-4 py-2 text-white placeholder-gray-400 mb-2"
               />
-              <Icon 
-                name="search" 
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" 
+              <Icon
+                name="search"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400"
               />
             </div>
-            
+
             {filteredOptions.length === 0 ? (
               <div className="py-2 text-center text-sm text-gray-400">
                 No se encontraron opciones.
@@ -113,13 +114,18 @@ export const PrivacySelector: FC<PrivacySelectorProps> = ({
                     }}
                     className="w-full flex items-center gap-3 p-2 hover:bg-[#35495e] rounded-lg transition-colors"
                   >
-                    <Icon name={option.icon} className="h-5 w-5 text-gray-400" />
+                    <Icon
+                      name={option.icon}
+                      className="h-5 w-5 text-gray-400"
+                    />
                     <div className="text-left flex-1">
                       <p className="text-white text-sm">{option.label}</p>
-                      <p className="text-gray-400 text-xs">{option.description}</p>
+                      <p className="text-gray-400 text-xs">
+                        {option.description}
+                      </p>
                     </div>
                     {selectedPrivacy.id === option.id && (
-                      <Icon name="check" className="h-4 w-4 text-[#ec7211]" />
+                      <Icon name="check" className="h-4 w-4 text-[#004f9f]" />
                     )}
                   </button>
                 ))}

@@ -136,7 +136,7 @@ const PreferencesPanel: React.FC = () => {
                     toast.success(`Idioma cambiado a ${e.target.value}`)
                   }
                   defaultValue="es"
-                  className="block w-full pl-3 pr-10 py-1.5 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-[#ec7211] focus:border-[#ec7211] sm:text-sm rounded-md"
+                  className="block w-full pl-3 pr-10 py-1.5 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-[#004f9f] focus:border-[#004f9f] sm:text-sm rounded-md"
                 >
                   <option value="es">Español</option>
                   <option value="en">English</option>
@@ -164,7 +164,7 @@ const PreferencesPanel: React.FC = () => {
                     toast.success(`Formato cambiado a ${e.target.value}`)
                   }
                   defaultValue="24h"
-                  className="block w-full pl-3 pr-10 py-1.5 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-[#ec7211] focus:border-[#ec7211] sm:text-sm rounded-md"
+                  className="block w-full pl-3 pr-10 py-1.5 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-[#004f9f] focus:border-[#004f9f] sm:text-sm rounded-md"
                 >
                   <option value="24h">24 horas (DD/MM/YYYY)</option>
                   <option value="12h">12 horas (DD/MM/YYYY)</option>

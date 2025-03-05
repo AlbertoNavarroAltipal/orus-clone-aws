@@ -22,10 +22,10 @@ export default function RootLayout({ children }: LayoutProps) {
         <ThemeProvider>
           <NextAuthProvider>
             <SessionExpirationProvider>
-              <LoadingProvider>
-                {children}
-                {/* <Toaster richColors position="bottom-right" /> */}
-              </LoadingProvider>
+              {/* <LoadingProvider> */}
+              {children}
+              {/* <Toaster richColors position="bottom-right" /> */}
+              {/* </LoadingProvider> */}
             </SessionExpirationProvider>
           </NextAuthProvider>
         </ThemeProvider>

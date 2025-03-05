@@ -1,9 +1,7 @@
+// src/app/(dashboard)/account/components/ProfileForm.tsx
 "use client";
 
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -19,140 +17,570 @@ import {
   Flag,
   Store,
   Warehouse,
-  Clock,
+  AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
-import { UserData } from "@/types/UserData";
-
-// Esquema de validación para el formulario de perfil
-const profileSchema = z.object({
-  // Información personal
-  firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres"),
-  dni: z.string().optional(),
-  birthDate: z.string().optional(),
-  gender: z.string().optional(),
-
-  // Información de contacto
-  email: z.string().email("Correo electrónico inválido"),
-  personalEmail: z
-    .string()
-    .email("Correo electrónico inválido")
-    .optional()
-    .or(z.literal("")),
-  phone: z.string().optional(),
-
-  // Información laboral
-  jobTitle: z.string().optional(),
-  department: z.string().optional(),
-  management: z.string().optional(),
-
-  // Información comercial
-  salesZone: z.string().optional(),
-  channel: z.string().optional(),
-
-  // Ubicación y preferencias
-  location: z.string().optional(),
-  country: z.string().optional(),
-  timezone: z.string().optional(),
-  language: z.string().optional(),
-  site: z.string().optional(),
-  cedi: z.string().optional(),
-});
-
-type ProfileFormValues = z.infer<typeof profileSchema>;
+import client from "@/config/aws-config";
+import { toast } from "sonner";
 
 interface ProfileFormProps {
-  userData: UserData;
-  onSubmit: (data: ProfileFormValues) => void;
+  userData: any;
   onCancel: () => void;
-  isSaving: boolean;
 }
 
-/**
- * Formulario mejorado para editar la información del perfil del usuario
- * Con validación mediante Zod y diseño mejorado
- */
-const ProfileForm: React.FC<ProfileFormProps> = ({
-  userData,
-  onSubmit,
-  onCancel,
-  isSaving,
-}) => {
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+const ProfileForm: React.FC<ProfileFormProps> = ({ userData, onCancel }) => {
+  // Estado para las secciones del formulario
+  const [activeSection, setActiveSection] = useState<string | null>("personal");
+  // Estado para el campo que se está actualizando
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  // Estado para el modal de confirmación de DNI
+  const [showDniModal, setShowDniModal] = useState(false);
+  const [pendingDniUpdate, setPendingDniUpdate] = useState<string | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, dirtyFields },
-  } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      dni: userData.dni || "",
-      birthDate: userData.birthDate || "",
-      gender: userData.gender || "",
-      email: userData.email,
-      personalEmail: userData.personalEmail || "",
-      phone: userData.phone || "",
-      jobTitle: userData.jobTitle || "",
-      department: userData.department || "",
-      management: userData.management || "",
-      salesZone: userData.salesZone || "",
-      channel: userData.channel || "",
-      location: userData.location || "",
-      country: userData.country || "",
-      timezone: userData.timezone || "",
-      language: userData.language || "",
-      site: userData.site || "",
-      cedi: userData.cedi || "",
-    },
+  // Estado para los valores del formulario
+  const [formValues, setFormValues] = useState({
+    nombre_completo: "",
+    dni: "",
+    fecha_nacimiento: "",
+    genero: "",
+    foto_perfil: "",
+    email: "",
+    numero_contacto: "",
+    cargo: "",
+    gerencia: "",
+    id_zona_ventas: "",
+    canal: "",
+    sitio: "",
+    codigo_cedi: "",
+    contrasena: "",
+    estado: false,
+    verificacion_correo: "",
   });
 
-  // Determinar si una sección tiene cambios
-  const isSectionDirty = (fields: string[]) => {
-    return fields.some(
-      (field) => dirtyFields[field as keyof ProfileFormValues]
-    );
+  // Errores de validación
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Cargar los datos del usuario al montar el componente
+  useEffect(() => {
+    if (userData) {
+      setFormValues({
+        nombre_completo: userData.nombreCompleto || "",
+        dni: userData.dni || "",
+        fecha_nacimiento: userData.fechaNacimiento || "",
+        genero: userData.genero || "",
+        foto_perfil: userData.fotoPerfil || "",
+        email: userData.email || "",
+        numero_contacto: userData.numeroContacto || "",
+        cargo: userData.cargo || "",
+        gerencia: userData.gerencia || "",
+        id_zona_ventas: userData.idZonaVentas || "",
+        canal: userData.canal || "",
+        sitio: userData.sitio || "",
+        codigo_cedi: userData.codigoCedi || "",
+        contrasena: "", // No mostramos la contraseña
+        estado: userData.estado || false,
+        verificacion_correo: userData.verificacionCorreo || "",
+      });
+    }
+  }, [userData]);
+
+  // Función para manejar cambios en los campos del formulario
+  const handleInputChange = (field: string, value: string | boolean) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    // Limpiar error al cambiar el valor
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
 
-  // Expandir o colapsar una sección
+  // Función para validar un campo
+  const validateField = (field: string, value: string | boolean): boolean => {
+    // Limpiar errores previos
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+
+    // Validación básica para campos de texto
+    if (typeof value === "string") {
+      if (field === "nombre_completo" && (!value || value.length < 2)) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]: "El nombre completo debe tener al menos 2 caracteres",
+        }));
+        return false;
+      }
+
+      if (field === "email" && (!value || !/\S+@\S+\.\S+/.test(value))) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]: "Ingrese un correo electrónico válido",
+        }));
+        return false;
+      }
+
+      if (
+        field === "numero_contacto" &&
+        value &&
+        !/^\+?\d{10,15}$/.test(value)
+      ) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]:
+            "El formato debe ser XXXXXXXXXX (10-15 dígitos, opcional código de país)",
+        }));
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // Función para actualizar un campo
+  const updateField = async (field: string) => {
+    // No hacer nada si ya estamos actualizando
+    if (isUpdating) return;
+
+    // No permitir actualizar el email
+    if (field === "email") return;
+
+    // Obtener el valor del campo
+    const value = formValues[field as keyof typeof formValues];
+
+    // Validar el campo
+    if (!validateField(field, value)) return;
+
+    // Caso especial para el DNI
+    if (field === "dni" && value !== userData.dni) {
+      setPendingDniUpdate(value);
+      setShowDniModal(true);
+      return;
+    }
+
+    try {
+      setIsUpdating(field);
+
+      // Fecha actual para la actualización
+      const currentDate = new Date().toISOString();
+
+      // Crear una copia de todos los valores actuales
+      const variables = {
+        dni: formValues.dni || "",
+        canal: formValues.canal || "",
+        cargo: formValues.cargo || "",
+        codigo_cedi: formValues.codigo_cedi || "",
+        contrasena: "", // No enviamos la contraseña
+        email: userData.email,
+        estado: formValues.estado,
+        fecha_actualizacion: currentDate,
+        fecha_nacimiento: formValues.fecha_nacimiento || "",
+        foto_perfil: formValues.foto_perfil || "",
+        genero: formValues.genero || "",
+        gerencia: formValues.gerencia || "",
+        id_zona_ventas: formValues.id_zona_ventas || "",
+        nombre_completo: formValues.nombre_completo || "",
+        numero_contacto: formValues.numero_contacto || "",
+        sitio: formValues.sitio || "",
+        verificacion_correo: formValues.verificacion_correo || "",
+      };
+
+      // Actualizar solo el campo específico con el nuevo valor
+      variables[field] = value;
+
+      console.log("Variables para la mutación:", variables);
+
+      // Crear la mutación idéntica a la que proporcionaste
+      const UPDATE_USER = `
+        mutation UpdateUser(
+          $dni: String = "",
+          $canal: String = "",
+          $cargo: String = "",
+          $codigo_cedi: String = "",
+          $contrasena: String = "",
+          $email: AWSEmail = "admin@altipal.com.co",
+          $estado: Boolean = false,
+          $fecha_actualizacion: AWSDateTime = "1970-01-01T12:30:00.000Z",
+          $fecha_nacimiento: AWSDate = "2025-11-13",
+          $foto_perfil: String = "",
+          $genero: String = "",
+          $gerencia: String = "",
+          $id_zona_ventas: String = "",
+          $nombre_completo: String = "",
+          $numero_contacto: AWSPhone = "3154377743",
+          $sitio: String = "",
+          $verificacion_correo: AWSDateTime = "1970-01-01T12:30:00.000Z"
+        ) {
+          updateMaestroUsuarios(
+            input: {
+              dni: $dni,
+              canal: $canal,
+              cargo: $cargo,
+              codigo_cedi: $codigo_cedi,
+              contrasena: $contrasena,
+              email: $email,
+              estado: $estado,
+              fecha_actualizacion: $fecha_actualizacion,
+              fecha_nacimiento: $fecha_nacimiento,
+              foto_perfil: $foto_perfil,
+              genero: $genero,
+              gerencia: $gerencia,
+              id_zona_ventas: $id_zona_ventas,
+              nombre_completo: $nombre_completo,
+              numero_contacto: $numero_contacto,
+              sitio: $sitio,
+              verificacion_correo: $verificacion_correo
+            }
+          ) {
+            dni
+            email
+            fecha_actualizacion
+            ${field}
+          }
+        }
+      `;
+
+      // Ejecutar la mutación
+      const response = await client.graphql({
+        query: UPDATE_USER,
+        variables: variables,
+      });
+
+      console.log("Respuesta de la mutación:", response);
+
+      // Actualizar los datos locales
+      if (response.data?.updateMaestroUsuarios) {
+        // También actualizar los datos de userData para mantener todo sincronizado
+        if (field === "nombre_completo") userData.nombreCompleto = value;
+        if (field === "dni") userData.dni = value;
+        if (field === "fecha_nacimiento") userData.fechaNacimiento = value;
+        if (field === "genero") userData.genero = value;
+        if (field === "foto_perfil") userData.fotoPerfil = value;
+        if (field === "numero_contacto") userData.numeroContacto = value;
+        if (field === "cargo") userData.cargo = value;
+        if (field === "gerencia") userData.gerencia = value;
+        if (field === "id_zona_ventas") userData.idZonaVentas = value;
+        if (field === "canal") userData.canal = value;
+        if (field === "sitio") userData.sitio = value;
+        if (field === "codigo_cedi") userData.codigoCedi = value;
+      }
+
+      toast.success(`Campo ${getFieldLabel(field)} actualizado correctamente`);
+    } catch (error) {
+      console.error(`Error al actualizar ${field}:`, error);
+
+      let errorMessage = `Error al actualizar ${getFieldLabel(field)}. `;
+      if (error instanceof Error) {
+        errorMessage += error.message;
+      }
+
+      if ((error as any)?.errors) {
+        const graphQLErrors = (error as any).errors;
+        graphQLErrors.forEach((err: any) => {
+          errorMessage += ` ${err.message}`;
+        });
+      }
+
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  // Función para confirmar cambio de DNI
+  const confirmDniUpdate = async () => {
+    if (!pendingDniUpdate) return;
+
+    try {
+      setIsUpdating("dni");
+
+      // Fecha actual para la actualización
+      const currentDate = new Date().toISOString();
+
+      // Crear variables con el mismo formato que tu ejemplo
+      const variables = {
+        dni: pendingDniUpdate,
+        canal: formValues.canal || "",
+        cargo: formValues.cargo || "",
+        codigo_cedi: formValues.codigo_cedi || "",
+        contrasena: "",
+        email: userData.email,
+        estado: formValues.estado,
+        fecha_actualizacion: currentDate,
+        fecha_nacimiento: formValues.fecha_nacimiento || "",
+        foto_perfil: formValues.foto_perfil || "",
+        genero: formValues.genero || "",
+        gerencia: formValues.gerencia || "",
+        id_zona_ventas: formValues.id_zona_ventas || "",
+        nombre_completo: formValues.nombre_completo || "",
+        numero_contacto: formValues.numero_contacto || "",
+        sitio: formValues.sitio || "",
+        verificacion_correo: formValues.verificacion_correo || "",
+      };
+
+      // Usar la misma mutación exacta
+      const UPDATE_USER = `
+        mutation UpdateUser(
+          $dni: String = "",
+          $canal: String = "",
+          $cargo: String = "",
+          $codigo_cedi: String = "",
+          $contrasena: String = "",
+          $email: AWSEmail = "admin@altipal.com.co",
+          $estado: Boolean = false,
+          $fecha_actualizacion: AWSDateTime = "1970-01-01T12:30:00.000Z",
+          $fecha_nacimiento: AWSDate = "2025-11-13",
+          $foto_perfil: String = "",
+          $genero: String = "",
+          $gerencia: String = "",
+          $id_zona_ventas: String = "",
+          $nombre_completo: String = "",
+          $numero_contacto: AWSPhone = "3154377743",
+          $sitio: String = "",
+          $verificacion_correo: AWSDateTime = "1970-01-01T12:30:00.000Z"
+        ) {
+          updateMaestroUsuarios(
+            input: {
+              dni: $dni,
+              canal: $canal,
+              cargo: $cargo,
+              codigo_cedi: $codigo_cedi,
+              contrasena: $contrasena,
+              email: $email,
+              estado: $estado,
+              fecha_actualizacion: $fecha_actualizacion,
+              fecha_nacimiento: $fecha_nacimiento,
+              foto_perfil: $foto_perfil,
+              genero: $genero,
+              gerencia: $gerencia,
+              id_zona_ventas: $id_zona_ventas,
+              nombre_completo: $nombre_completo,
+              numero_contacto: $numero_contacto,
+              sitio: $sitio,
+              verificacion_correo: $verificacion_correo
+            }
+          ) {
+            dni
+            email
+            fecha_actualizacion
+          }
+        }
+      `;
+
+      // Ejecutar la mutación
+      const response = await client.graphql({
+        query: UPDATE_USER,
+        variables: variables,
+      });
+
+      console.log("Respuesta DNI:", response);
+
+      // Actualizar datos locales
+      setFormValues((prev) => ({ ...prev, dni: pendingDniUpdate }));
+      userData.dni = pendingDniUpdate;
+
+      toast.success("DNI actualizado correctamente");
+      setShowDniModal(false);
+      setPendingDniUpdate(null);
+    } catch (error) {
+      console.error("Error al actualizar DNI:", error);
+
+      let errorMessage = "Error al actualizar DNI. ";
+      if (error instanceof Error) {
+        errorMessage += error.message;
+      }
+
+      if ((error as any)?.errors) {
+        const graphQLErrors = (error as any).errors;
+        graphQLErrors.forEach((err: any) => {
+          errorMessage += ` ${err.message}`;
+        });
+      }
+
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  // Función para expandir/contraer secciones
   const toggleSection = (section: string) => {
     setActiveSection(activeSection === section ? null : section);
   };
 
+  // Obtener la etiqueta para un campo
+  const getFieldLabel = (field: string): string => {
+    const labels: Record<string, string> = {
+      nombre_completo: "Nombre completo",
+      dni: "DNI / Documento de identidad",
+      fecha_nacimiento: "Fecha de nacimiento",
+      genero: "Género",
+      foto_perfil: "Foto de perfil",
+      numero_contacto: "Teléfono",
+      cargo: "Cargo",
+      gerencia: "Gerencia",
+      id_zona_ventas: "Zona de ventas",
+      canal: "Canal",
+      sitio: "Sitio",
+      codigo_cedi: "Código CEDI",
+    };
+
+    return labels[field] || field;
+  };
+
+  // Si no hay datos de usuario, mostrar mensaje de error
+  if (!userData) {
+    return (
+      <div className="p-6 bg-white dark:bg-[#0f1b2d] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+        <div className="flex flex-col items-center justify-center py-8">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">
+            No se encontraron datos del usuario
+          </h3>
+          <button
+            onClick={onCancel}
+            className="mt-4 px-4 py-2 bg-[#004f9f] text-white rounded-md hover:bg-[#003d7a] transition-colors"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Renderizar un campo con su botón de guardar
+  const renderField = (
+    field: string,
+    icon: React.ReactNode,
+    type: string = "text",
+    options?: string[][]
+  ) => {
+    const isUpdatingThis = isUpdating === field;
+    const value = formValues[field as keyof typeof formValues];
+
+    return (
+      <div className="flex items-end gap-2">
+        <div className="flex-grow">
+          <label
+            htmlFor={field}
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            {getFieldLabel(field)}{" "}
+            {field === "nombre_completo" ? (
+              <span className="text-red-500">*</span>
+            ) : null}
+          </label>
+          <div className="relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              {icon}
+            </div>
+            {type === "select" && options ? (
+              <select
+                id={field}
+                value={typeof value === "string" ? value : ""}
+                onChange={(e) => handleInputChange(field, e.target.value)}
+                className={`pl-10 block w-full text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 focus:ring-[#004f9f] focus:border-[#004f9f] ${
+                  errors[field]
+                    ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                    : ""
+                }`}
+                disabled={field === "email"}
+              >
+                <option value="">Seleccione...</option>
+                {options.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={type}
+                id={field}
+                value={typeof value === "string" ? value : ""}
+                onChange={(e) => handleInputChange(field, e.target.value)}
+                className={`pl-10 block w-full text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 focus:ring-[#004f9f] focus:border-[#004f9f] ${
+                  errors[field]
+                    ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                    : ""
+                }`}
+                disabled={field === "email"}
+              />
+            )}
+          </div>
+          {errors[field] && (
+            <p className="mt-1 text-sm text-red-600">{errors[field]}</p>
+          )}
+        </div>
+        {field !== "email" && (
+          <button
+            type="button"
+            onClick={() => updateField(field)}
+            disabled={isUpdatingThis}
+            className="h-10 px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#004f9f] hover:bg-[#dd6b10] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isUpdatingThis ? (
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            ) : (
+              "Guardar"
+            )}
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-      {/* Encabezado del formulario */}
+    <div className="p-6">
+      {/* Encabezado */}
       <div className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-[#121e33] dark:to-[#0f1b2d] p-4 rounded-lg mb-6 border border-gray-200 dark:border-gray-700">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white">
           Editar Perfil
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Actualice su información personal y preferencias
+          Actualice su información personal y preferencias campo por campo
         </p>
       </div>
 
       {/* Sección de Información Personal */}
       <div className="mb-6 bg-white dark:bg-[#121e33] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
         <div
-          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer transition-colors ${
+          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer ${
             activeSection === "personal" ? "bg-gray-100 dark:bg-[#232f3e]" : ""
-          } ${
-            isSectionDirty([
-              "firstName",
-              "lastName",
-              "dni",
-              "birthDate",
-              "gender",
-            ])
-              ? "bg-blue-50 dark:bg-blue-900/20"
-              : ""
           }`}
           onClick={() => toggleSection("personal")}
         >
           <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-            <User className="mr-2 h-5 w-5 text-[#ec7211]" />
+            <User className="mr-2 h-5 w-5 text-[#004f9f]" />
             Información Personal
           </h3>
           <div className="text-sm text-gray-500">
@@ -161,129 +589,35 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         </div>
 
         {activeSection === "personal" && (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <label
-                htmlFor="firstName"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Nombre <span className="text-red-500">*</span>
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="firstName"
-                  {...register("firstName")}
-                  className={`pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 ${
-                    errors.firstName
-                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                      : ""
-                  }`}
-                />
-              </div>
-              {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.firstName.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="lastName"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Apellido <span className="text-red-500">*</span>
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="lastName"
-                  {...register("lastName")}
-                  className={`pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 ${
-                    errors.lastName
-                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                      : ""
-                  }`}
-                />
-              </div>
-              {errors.lastName && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.lastName.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="dni"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                DNI / Documento de Identidad
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <CreditCard className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="dni"
-                  {...register("dni")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="gender"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Género
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-gray-400" />
-                </div>
-                <select
-                  id="gender"
-                  {...register("gender")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                >
-                  <option value="">Seleccione...</option>
-                  <option value="Masculino">Masculino</option>
-                  <option value="Femenino">Femenino</option>
-                  <option value="Otro">Otro</option>
-                  <option value="Prefiero no decir">Prefiero no decir</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="birthDate"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Fecha de Nacimiento
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="date"
-                  id="birthDate"
-                  {...register("birthDate")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
+          <div className="p-4 space-y-4">
+            {renderField(
+              "nombre_completo",
+              <User className="h-4 w-4 text-gray-400" />
+            )}
+            {renderField(
+              "dni",
+              <CreditCard className="h-4 w-4 text-gray-400" />
+            )}
+            {renderField(
+              "genero",
+              <User className="h-4 w-4 text-gray-400" />,
+              "select",
+              [
+                ["Masculino", "Masculino"],
+                ["Femenino", "Femenino"],
+                ["Otro", "Otro"],
+                ["Prefiero no decir", "Prefiero no decir"],
+              ]
+            )}
+            {renderField(
+              "fecha_nacimiento",
+              <Calendar className="h-4 w-4 text-gray-400" />,
+              "date"
+            )}
+            {renderField(
+              "foto_perfil",
+              <User className="h-4 w-4 text-gray-400" />
+            )}
           </div>
         )}
       </div>
@@ -291,17 +625,13 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
       {/* Sección de Información de Contacto */}
       <div className="mb-6 bg-white dark:bg-[#121e33] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
         <div
-          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer transition-colors ${
+          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer ${
             activeSection === "contact" ? "bg-gray-100 dark:bg-[#232f3e]" : ""
-          } ${
-            isSectionDirty(["email", "personalEmail", "phone"])
-              ? "bg-blue-50 dark:bg-blue-900/20"
-              : ""
           }`}
           onClick={() => toggleSection("contact")}
         >
           <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-            <Mail className="mr-2 h-5 w-5 text-[#ec7211]" />
+            <Mail className="mr-2 h-5 w-5 text-[#004f9f]" />
             Información de Contacto
           </h3>
           <div className="text-sm text-gray-500">
@@ -310,84 +640,23 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         </div>
 
         {activeSection === "contact" && (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Correo Corporativo <span className="text-red-500">*</span>
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="email"
-                  id="email"
-                  {...register("email")}
-                  className={`pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 ${
-                    errors.email
-                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                      : ""
-                  }`}
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="personalEmail"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Correo Personal
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="email"
-                  id="personalEmail"
-                  {...register("personalEmail")}
-                  className={`pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 ${
-                    errors.personalEmail
-                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                      : ""
-                  }`}
-                />
-              </div>
-              {errors.personalEmail && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.personalEmail.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Teléfono
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="phone"
-                  {...register("phone")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
+          <div className="p-4 space-y-4">
+            {renderField(
+              "email",
+              <Mail className="h-4 w-4 text-gray-400" />,
+              "email"
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+              El correo electrónico no puede ser modificado
+            </p>
+            {renderField(
+              "numero_contacto",
+              <Phone className="h-4 w-4 text-gray-400" />,
+              "tel"
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+              Formato: XXXXXXXXXX (10-15 dígitos)
+            </p>
           </div>
         )}
       </div>
@@ -395,17 +664,13 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
       {/* Sección de Información Laboral */}
       <div className="mb-6 bg-white dark:bg-[#121e33] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
         <div
-          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer transition-colors ${
+          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer ${
             activeSection === "work" ? "bg-gray-100 dark:bg-[#232f3e]" : ""
-          } ${
-            isSectionDirty(["jobTitle", "department", "management"])
-              ? "bg-blue-50 dark:bg-blue-900/20"
-              : ""
           }`}
           onClick={() => toggleSection("work")}
         >
           <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-            <Briefcase className="mr-2 h-5 w-5 text-[#ec7211]" />
+            <Briefcase className="mr-2 h-5 w-5 text-[#004f9f]" />
             Información Laboral
           </h3>
           <div className="text-sm text-gray-500">
@@ -414,66 +679,15 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         </div>
 
         {activeSection === "work" && (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <label
-                htmlFor="jobTitle"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Cargo
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Briefcase className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="jobTitle"
-                  {...register("jobTitle")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="department"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Departamento
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Building className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="department"
-                  {...register("department")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="management"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Gerencia
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Building className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="management"
-                  {...register("management")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
+          <div className="p-4 space-y-4">
+            {renderField(
+              "cargo",
+              <Briefcase className="h-4 w-4 text-gray-400" />
+            )}
+            {renderField(
+              "gerencia",
+              <Building className="h-4 w-4 text-gray-400" />
+            )}
           </div>
         )}
       </div>
@@ -481,293 +695,140 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
       {/* Sección de Información Comercial */}
       <div className="mb-6 bg-white dark:bg-[#121e33] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
         <div
-          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer transition-colors ${
-            activeSection === "sales" ? "bg-gray-100 dark:bg-[#232f3e]" : ""
-          } ${
-            isSectionDirty(["salesZone", "channel"])
-              ? "bg-blue-50 dark:bg-blue-900/20"
+          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer ${
+            activeSection === "commercial"
+              ? "bg-gray-100 dark:bg-[#232f3e]"
               : ""
           }`}
-          onClick={() => toggleSection("sales")}
+          onClick={() => toggleSection("commercial")}
         >
           <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-            <ShoppingBag className="mr-2 h-5 w-5 text-[#ec7211]" />
+            <ShoppingBag className="mr-2 h-5 w-5 text-[#004f9f]" />
             Información Comercial
           </h3>
           <div className="text-sm text-gray-500">
-            {activeSection === "sales" ? "▼" : "▶"}
+            {activeSection === "commercial" ? "▼" : "▶"}
           </div>
         </div>
 
-        {activeSection === "sales" && (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <label
-                htmlFor="salesZone"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Zona de Ventas
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Flag className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="salesZone"
-                  {...register("salesZone")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="channel"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Canal
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Layers className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="channel"
-                  {...register("channel")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
+        {activeSection === "commercial" && (
+          <div className="p-4 space-y-4">
+            {renderField(
+              "id_zona_ventas",
+              <Flag className="h-4 w-4 text-gray-400" />
+            )}
+            {renderField("canal", <Layers className="h-4 w-4 text-gray-400" />)}
           </div>
         )}
       </div>
 
-      {/* Sección de Ubicación y Preferencias */}
+      {/* Sección de Información del Sitio */}
       <div className="mb-6 bg-white dark:bg-[#121e33] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
         <div
-          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer transition-colors ${
-            activeSection === "location" ? "bg-gray-100 dark:bg-[#232f3e]" : ""
-          } ${
-            isSectionDirty([
-              "location",
-              "country",
-              "timezone",
-              "language",
-              "site",
-              "cedi",
-            ])
-              ? "bg-blue-50 dark:bg-blue-900/20"
-              : ""
+          className={`bg-gray-50 dark:bg-[#1a2942] px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer ${
+            activeSection === "site" ? "bg-gray-100 dark:bg-[#232f3e]" : ""
           }`}
-          onClick={() => toggleSection("location")}
+          onClick={() => toggleSection("site")}
         >
           <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-            <Globe className="mr-2 h-5 w-5 text-[#ec7211]" />
-            Ubicación y Preferencias
+            <Globe className="mr-2 h-5 w-5 text-[#004f9f]" />
+            Información del Sitio
           </h3>
           <div className="text-sm text-gray-500">
-            {activeSection === "location" ? "▼" : "▶"}
+            {activeSection === "site" ? "▼" : "▶"}
           </div>
         </div>
 
-        {activeSection === "location" && (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <label
-                htmlFor="location"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Ubicación
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="location"
-                  {...register("location")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="country"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                País
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Globe className="h-4 w-4 text-gray-400" />
-                </div>
-                <select
-                  id="country"
-                  {...register("country")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                >
-                  <option value="">Seleccione...</option>
-                  <option value="Colombia">Colombia</option>
-                  <option value="Ecuador">Ecuador</option>
-                  <option value="Perú">Perú</option>
-                  <option value="México">México</option>
-                  <option value="Venezuela">Venezuela</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="timezone"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Zona Horaria
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                </div>
-                <select
-                  id="timezone"
-                  {...register("timezone")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                >
-                  <option value="">Seleccione...</option>
-                  <option value="(GMT-5) Bogotá, Lima, Quito">
-                    (GMT-5) Bogotá, Lima, Quito
-                  </option>
-                  <option value="(GMT-6) Ciudad de México">
-                    (GMT-6) Ciudad de México
-                  </option>
-                  <option value="(GMT-4) Caracas">(GMT-4) Caracas</option>
-                  <option value="(GMT-3) Buenos Aires">
-                    (GMT-3) Buenos Aires
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="language"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Idioma
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Globe className="h-4 w-4 text-gray-400" />
-                </div>
-                <select
-                  id="language"
-                  {...register("language")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                >
-                  <option value="">Seleccione...</option>
-                  <option value="Español">Español</option>
-                  <option value="Inglés">Inglés</option>
-                  <option value="Portugués">Portugués</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="site"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Sitio
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Store className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="site"
-                  {...register("site")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="cedi"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                CEDI
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Warehouse className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="cedi"
-                  {...register("cedi")}
-                  className="pl-10 focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
-                />
-              </div>
-            </div>
+        {activeSection === "site" && (
+          <div className="p-4 space-y-4">
+            {renderField("sitio", <Store className="h-4 w-4 text-gray-400" />)}
+            {renderField(
+              "codigo_cedi",
+              <Warehouse className="h-4 w-4 text-gray-400" />
+            )}
           </div>
         )}
       </div>
 
-      {/* Botones de acción */}
-      <div className="mt-6 flex justify-between items-center">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          <span className="text-red-500">*</span> Campos obligatorios
-        </div>
-
-        <div className="flex space-x-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="inline-flex justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#ec7211] hover:bg-[#dd6b10] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSaving ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Guardando...
-              </>
-            ) : (
-              "Guardar Cambios"
-            )}
-          </button>
-        </div>
+      {/* Botón de volver */}
+      <div className="mt-6 flex justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none transition-colors"
+        >
+          Volver
+        </button>
       </div>
-    </form>
+
+      {/* Modal de confirmación para cambio de DNI */}
+      {showDniModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#121e33] rounded-lg max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center text-amber-500 mb-4">
+              <AlertTriangle className="h-6 w-6 mr-2" />
+              <h3 className="text-lg font-medium">
+                Confirmación de cambio de DNI
+              </h3>
+            </div>
+
+            <p className="mb-4 text-gray-700 dark:text-gray-300">
+              Está a punto de cambiar su número de identificación (DNI). Este es
+              un dato crítico que podría afectar a múltiples sistemas y
+              procesos.
+            </p>
+
+            <p className="mb-6 text-gray-700 dark:text-gray-300">
+              <strong>DNI actual:</strong> {userData.dni || "No especificado"}
+              <br />
+              <strong>Nuevo DNI:</strong> {pendingDniUpdate}
+            </p>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDniModal(false);
+                  setPendingDniUpdate(null);
+                }}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDniUpdate}
+                disabled={isUpdating === "dni"}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:outline-none disabled:opacity-50"
+              >
+                {isUpdating === "dni" ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  "Confirmar cambio"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -46,7 +46,7 @@ const CollapsedSubmenu: React.FC<CollapsedSubmenuProps> = ({
               {item.badge && (
                 <span
                   className={`ml-2 ${
-                    item.badge.color || "bg-[#ec7211]"
+                    item.badge.color || "bg-[#004f9f]"
                   } text-white text-xs px-1.5 py-0.5 rounded-full`}
                 >
                   {item.badge.text}
@@ -197,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {item.badge && (
                   <span
                     className={`absolute -top-2 -right-2 ${
-                      item.badge.color || "bg-[#ec7211]"
+                      item.badge.color || "bg-[#004f9f]"
                     } text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1`}
                   >
                     {item.badge.text}
@@ -246,7 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {item.badge && (
             <span
               className={`ml-2 ${
-                item.badge.color || "bg-[#ec7211]"
+                item.badge.color || "bg-[#004f9f]"
               } text-white text-xs px-1.5 py-0.5 rounded-full`}
             >
               {item.badge.text}

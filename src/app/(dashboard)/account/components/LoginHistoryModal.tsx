@@ -37,7 +37,7 @@ const LoginHistoryModal: React.FC<LoginHistoryModalProps> = ({
                 clsx(
                   "py-2 px-4 text-sm font-medium border-b-2 focus:outline-none",
                   selected
-                    ? "border-[#ec7211] text-[#ec7211]"
+                    ? "border-[#004f9f] text-[#004f9f]"
                     : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 )
               }
@@ -49,7 +49,7 @@ const LoginHistoryModal: React.FC<LoginHistoryModalProps> = ({
                 clsx(
                   "py-2 px-4 text-sm font-medium border-b-2 focus:outline-none",
                   selected
-                    ? "border-[#ec7211] text-[#ec7211]"
+                    ? "border-[#004f9f] text-[#004f9f]"
                     : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 )
               }

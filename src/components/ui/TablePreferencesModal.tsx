@@ -132,7 +132,7 @@ const TablePreferencesModal = ({
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-[#ec7211] text-white rounded hover:bg-[#ec7211]/90"
+            className="px-4 py-2 bg-[#004f9f] text-white rounded hover:bg-[#004f9f]/90"
           >
             Confirmar
           </button>

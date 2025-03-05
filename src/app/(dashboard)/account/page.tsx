@@ -10,6 +10,7 @@ import ProfilePanel from "./components/ProfilePanel";
 import SecurityPanel from "./components/SecurityPanel";
 import PreferencesPanel from "./components/PreferencesPanel";
 
+
 // Definición de pestañas
 const TABS = [
   { id: "profile", label: "Información de Perfil" },
@@ -41,7 +42,7 @@ export default function AccountPage() {
                   clsx(
                     "py-3 px-4 text-sm font-medium border-b-2 focus:outline-none",
                     selected
-                      ? "border-[#ec7211] text-[#ec7211]"
+                      ? "border-[#004f9f] text-[#004f9f]"
                       : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                   )
                 }

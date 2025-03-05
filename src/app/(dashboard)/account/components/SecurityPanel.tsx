@@ -1,3 +1,4 @@
+// src/app/(dashboard)/account/components/SecurityPanel.tsx
 "use client";
 
 import { useState } from "react";
@@ -147,17 +148,17 @@ const connectedDevicesData = [
  * para la cuenta del usuario, incluyendo bloqueo de pantalla
  */
 const SecurityPanel: React.FC = () => {
-  const { userData, updateUserData } = useUserData();
+  const { userData, updateUserData, loading, error } = useUserData();
 
-  // Configuración inicial del bloqueo de pantalla (si no existe)
-  const screenLock = userData.screenLock || {
+  // Configuración inicial del bloqueo de pantalla (apagado por defecto)
+  const [screenLock, setScreenLock] = useState({
     enabled: false,
     timeoutMinutes: 5,
     requirePin: false,
     pin: "",
     showClock: true,
     message: "Esta pantalla ha sido bloqueada por inactividad",
-  };
+  });
 
   // Estado para controlar los modales
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -165,6 +166,9 @@ const SecurityPanel: React.FC = () => {
   const [isLoginHistoryModalOpen, setIsLoginHistoryModalOpen] = useState(false);
   const [isDevicesModalOpen, setIsDevicesModalOpen] = useState(false);
   const [isScreenLockModalOpen, setIsScreenLockModalOpen] = useState(false);
+
+  // Verificación del estado MFA usando verificacionCorreo del API
+  const isMfaEnabled = userData?.verificacionCorreo ? true : false;
 
   // Función para cambiar contraseña (simulada)
   const handleChangePassword = async () => {
@@ -179,9 +183,8 @@ const SecurityPanel: React.FC = () => {
     // Simulación de habilitación de MFA
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsMfaModalOpen(false);
-    updateUserData({
-      mfaEnabled: true,
-    });
+
+    // En un entorno real, aquí se actualizaría el API de GraphQL
     toast.success("Autenticación de dos factores habilitada correctamente");
   };
 
@@ -193,9 +196,7 @@ const SecurityPanel: React.FC = () => {
 
   // Función para guardar la configuración de bloqueo de pantalla
   const handleSaveScreenLock = (lockConfig: any) => {
-    updateUserData({
-      screenLock: lockConfig,
-    });
+    setScreenLock(lockConfig);
     setIsScreenLockModalOpen(false);
     toast.success("Configuración de bloqueo guardada correctamente");
   };
@@ -207,14 +208,39 @@ const SecurityPanel: React.FC = () => {
       enabled: !screenLock.enabled,
     };
 
-    updateUserData({
-      screenLock: newConfig,
-    });
-
+    setScreenLock(newConfig);
     toast.success(
       `Bloqueo de pantalla ${newConfig.enabled ? "activado" : "desactivado"}`
     );
   };
+
+  // Si está cargando, muestra un skeleton loader
+  if (loading) {
+    return <SecurityPanelSkeleton />;
+  }
+
+  // Si hay un error, muestra un mensaje
+  if (error) {
+    return (
+      <div className="p-6 bg-white dark:bg-[#0f1b2d] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+        <div className="flex flex-col items-center justify-center py-8">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">
+            Error al cargar datos de seguridad
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            {error}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[#004f9f] text-white rounded-md hover:bg-[#003d7a] transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-[#0f1b2d] border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
@@ -264,7 +290,7 @@ const SecurityPanel: React.FC = () => {
                   Añada una capa adicional de seguridad a su cuenta
                 </p>
                 <div className="mt-2 flex items-center">
-                  {userData.mfaEnabled ? (
+                  {isMfaEnabled ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                       <Check className="mr-1 h-3 w-3" />
                       Habilitado
@@ -278,12 +304,9 @@ const SecurityPanel: React.FC = () => {
                 </div>
               </div>
               <div>
-                {userData.mfaEnabled ? (
+                {isMfaEnabled ? (
                   <button
                     onClick={() => {
-                      updateUserData({
-                        mfaEnabled: false,
-                      });
                       toast.success(
                         "Autenticación de dos factores deshabilitada"
                       );
@@ -295,7 +318,7 @@ const SecurityPanel: React.FC = () => {
                 ) : (
                   <button
                     onClick={() => setIsMfaModalOpen(true)}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-[#ec7211] hover:bg-[#dd6b10] focus:outline-none"
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-[#004f9f] hover:bg-[#dd6b10] focus:outline-none"
                   >
                     Habilitar
                   </button>
@@ -304,7 +327,7 @@ const SecurityPanel: React.FC = () => {
             </div>
           </li>
 
-          {/* Bloqueo de pantalla (NUEVA SECCIÓN INTEGRADA) */}
+          {/* Bloqueo de pantalla */}
           <li className="py-5">
             <div className="flex justify-between">
               <div className="flex-1 mr-4">
@@ -350,7 +373,7 @@ const SecurityPanel: React.FC = () => {
                   className={`inline-flex items-center px-3 py-1.5 border text-sm font-medium rounded focus:outline-none ${
                     screenLock.enabled
                       ? "border-red-300 dark:border-red-700 text-red-700 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"
-                      : "border-transparent text-white bg-[#ec7211] hover:bg-[#dd6b10]"
+                      : "border-transparent text-white bg-[#004f9f] hover:bg-[#dd6b10]"
                   }`}
                 >
                   {screenLock.enabled ? "Desactivar" : "Activar"}
@@ -450,6 +473,39 @@ const SecurityPanel: React.FC = () => {
           onSave={handleSaveScreenLock}
         />
       )}
+    </div>
+  );
+};
+
+/**
+ * Componente skeleton para mostrar durante la carga
+ */
+const SecurityPanelSkeleton: React.FC = () => {
+  return (
+    <div className="bg-white dark:bg-[#0f1b2d] border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm animate-pulse">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-3"></div>
+        <div className="h-4 w-72 bg-gray-100 dark:bg-gray-800 rounded"></div>
+      </div>
+
+      <div className="p-6">
+        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+          {[1, 2, 3, 4, 5].map((item) => (
+            <li key={item} className="py-5">
+              <div className="flex justify-between">
+                <div className="flex-1 mr-4">
+                  <div className="h-5 w-36 bg-gray-200 dark:bg-gray-700 rounded mb-3"></div>
+                  <div className="h-4 w-60 bg-gray-100 dark:bg-gray-800 rounded mb-2"></div>
+                  <div className="h-6 w-24 bg-gray-100 dark:bg-gray-800 rounded"></div>
+                </div>
+                <div>
+                  <div className="h-8 w-28 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };

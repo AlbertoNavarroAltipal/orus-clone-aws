@@ -76,7 +76,7 @@ const MfaModal: React.FC<MfaModalProps> = ({ isOpen, onClose, onSave }) => {
             className={`mt-1 block w-full border ${
               error
                 ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                : "border-gray-300 dark:border-gray-600 focus:ring-[#ec7211] focus:border-[#ec7211]"
+                : "border-gray-300 dark:border-gray-600 focus:ring-[#004f9f] focus:border-[#004f9f]"
             } dark:bg-gray-800 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm`}
           />
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}

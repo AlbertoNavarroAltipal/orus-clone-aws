@@ -106,7 +106,7 @@ const ScreenLockConfigModal: React.FC<ScreenLockConfigModalProps> = ({
                 name="timeoutMinutes"
                 value={formData.timeoutMinutes}
                 onChange={handleInputChange}
-                className="shadow-sm focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
+                className="shadow-sm focus:ring-[#004f9f] focus:border-[#004f9f] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
               >
                 <option value={1}>1 minuto</option>
                 <option value={2}>2 minutos</option>
@@ -148,7 +148,7 @@ const ScreenLockConfigModal: React.FC<ScreenLockConfigModalProps> = ({
                 htmlFor="togglePin"
                 className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${
                   formData.requirePin
-                    ? "bg-[#ec7211]"
+                    ? "bg-[#004f9f]"
                     : "bg-gray-300 dark:bg-gray-600"
                 }`}
               ></label>
@@ -174,7 +174,7 @@ const ScreenLockConfigModal: React.FC<ScreenLockConfigModalProps> = ({
                   maxLength={6}
                   pattern="[0-9]*"
                   inputMode="numeric"
-                  className={`shadow-sm focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 pr-10 ${
+                  className={`shadow-sm focus:ring-[#004f9f] focus:border-[#004f9f] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2 pr-10 ${
                     error
                       ? "border-red-300 focus:ring-red-500 focus:border-red-500"
                       : ""
@@ -219,7 +219,7 @@ const ScreenLockConfigModal: React.FC<ScreenLockConfigModalProps> = ({
                 htmlFor="toggleClock"
                 className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${
                   formData.showClock
-                    ? "bg-[#ec7211]"
+                    ? "bg-[#004f9f]"
                     : "bg-gray-300 dark:bg-gray-600"
                 }`}
               ></label>
@@ -242,7 +242,7 @@ const ScreenLockConfigModal: React.FC<ScreenLockConfigModalProps> = ({
                 value={formData.message || ""}
                 onChange={handleInputChange}
                 rows={2}
-                className="shadow-sm focus:ring-[#ec7211] focus:border-[#ec7211] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
+                className="shadow-sm focus:ring-[#004f9f] focus:border-[#004f9f] block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md px-3 py-2"
                 placeholder="Mensaje que se mostrará en la pantalla bloqueada"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

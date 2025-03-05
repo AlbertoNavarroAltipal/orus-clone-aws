@@ -71,7 +71,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
                 className={`w-full inline-flex justify-center rounded-md border ${
                   danger
                     ? "border-red-300 dark:border-red-700 text-red-700 dark:text-red-500 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    : "border-transparent shadow-sm text-white bg-[#ec7211] hover:bg-[#dd6b10]"
+                    : "border-transparent shadow-sm text-white bg-[#004f9f] hover:bg-[#dd6b10]"
                 } px-4 py-2 text-base font-medium focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm`}
               >
                 {isSubmitting ? "Procesando..." : submitLabel}

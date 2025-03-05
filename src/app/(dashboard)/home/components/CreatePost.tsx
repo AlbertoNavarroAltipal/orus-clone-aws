@@ -24,7 +24,7 @@ import {
   privacyOptions,
   EVENT_CATEGORIES,
   WEATHER_POLICIES,
-  VIRTUAL_PLATFORMS
+  VIRTUAL_PLATFORMS,
 } from "./constants";
 import type {
   PostType,
@@ -36,65 +36,65 @@ import type {
   Celebration,
   PostPrivacy,
   Hashtag,
-  EventData
+  EventData,
 } from "./types";
 
 // Estado inicial para eventData
 const DEFAULT_EVENT_DATA: EventData = {
-  title: '',
-  date: '',
-  endDate: '',
-  time: '',
-  endTime: '',
-  location: '',
-  address: '',
-  city: '',
-  country: '',
-  description: '',
-  category: '',
+  title: "",
+  date: "",
+  endDate: "",
+  time: "",
+  endTime: "",
+  location: "",
+  address: "",
+  city: "",
+  country: "",
+  description: "",
+  category: "",
   isOnline: false,
   image: null,
-  
+
   // Configuración básica
   requireRegistration: false,
   maxAttendees: null,
   frequency: null,
   tags: [],
   isPrivate: false,
-  
+
   // Gestión de invitados
   showGuestList: false,
   guestsCanInvite: false,
   guestsCanSeeList: false,
   coHosts: [],
-  
+
   // Tickets y registro
   ticketPrice: null,
-  ticketUrl: '',
-  
+  ticketUrl: "",
+
   // Restricciones y políticas
   ageRestriction: {
     hasRestriction: false,
-    minAge: null
+    minAge: null,
   },
   dress_code: null,
   weatherPolicy: null,
-  
+
   // Configuración virtual
   virtualPlatform: {
     type: null,
-    url: ''
+    url: "",
   },
-  
+
   // Contenido adicional
   sponsors: [],
   faq: [],
   agenda: [],
   socialSharing: {
     enabled: false,
-    platforms: []
+    platforms: [],
   },
-  files: []
+  files: [],
 };
 
 export function CreatePost() {
@@ -120,7 +120,9 @@ export function CreatePost() {
 
   // Estados de tipo y privacidad
   const [postType, setPostType] = useState<PostType>("regular");
-  const [selectedPrivacy, setSelectedPrivacy] = useState<PostPrivacy>(privacyOptions[0]);
+  const [selectedPrivacy, setSelectedPrivacy] = useState<PostPrivacy>(
+    privacyOptions[0]
+  );
 
   // Estados de características específicas
   const [pollOptions, setPollOptions] = useState<PollOption[]>([
@@ -132,7 +134,8 @@ export function CreatePost() {
   const [location, setLocation] = useState<PostLocation | null>(null);
   const [taggedUsers, setTaggedUsers] = useState<TaggedPerson[]>([]);
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
-  const [selectedCelebration, setSelectedCelebration] = useState<Celebration | null>(null);
+  const [selectedCelebration, setSelectedCelebration] =
+    useState<Celebration | null>(null);
   const [searchText, setSearchText] = useState("");
 
   // Procesamiento de Hashtags
@@ -226,7 +229,7 @@ export function CreatePost() {
       return postContent.trim() || mediaFiles.length > 0;
     }
     if (postType === "poll") {
-      return pollOptions.every(opt => opt.text.trim());
+      return pollOptions.every((opt) => opt.text.trim());
     }
     if (postType === "event") {
       return eventData.title.trim() && eventData.date && eventData.time;
@@ -246,12 +249,12 @@ export function CreatePost() {
         content: postContent.trim(),
         type: postType,
         privacy: selectedPrivacy.id,
-        hashtags: hashtags.map(tag => tag.text),
+        hashtags: hashtags.map((tag) => tag.text),
         mediaFiles,
         pollOptions: postType === "poll" ? pollOptions : undefined,
         eventData: postType === "event" ? eventData : undefined,
         location,
-        taggedUsers: taggedUsers.map(user => user.id),
+        taggedUsers: taggedUsers.map((user) => user.id),
         mood: selectedMood,
         celebration: selectedCelebration,
         document: selectedDocument,
@@ -260,7 +263,7 @@ export function CreatePost() {
 
       console.log("Enviando post:", postData);
       // Aquí iría la llamada al API
-      
+
       // Resetear el formulario
       setPostContent("");
       setMediaFiles([]);
@@ -269,7 +272,10 @@ export function CreatePost() {
       setHashtags([]);
       setPostType("regular");
       setSelectedPrivacy(privacyOptions[0]);
-      setPollOptions([{ id: "1", text: "" }, { id: "2", text: "" }]);
+      setPollOptions([
+        { id: "1", text: "" },
+        { id: "2", text: "" },
+      ]);
       setEventData(DEFAULT_EVENT_DATA);
       setLocation(null);
       setTaggedUsers([]);
@@ -316,7 +322,7 @@ export function CreatePost() {
                 onRemoveUser={removeTaggedUser}
               />
             )}
-            
+
             {location && (
               <LocationDisplay
                 location={location}
@@ -337,8 +343,8 @@ export function CreatePost() {
             )}
 
             {mediaFiles.length > 0 && (
-              <MediaPreviews 
-                mediaFiles={mediaFiles} 
+              <MediaPreviews
+                mediaFiles={mediaFiles}
                 setMediaFiles={setMediaFiles}
               />
             )}
@@ -351,10 +357,7 @@ export function CreatePost() {
             )}
 
             {postType === "event" && (
-              <EventCreator 
-                eventData={eventData}
-                setEventData={setEventData}
-              />
+              <EventCreator eventData={eventData} setEventData={setEventData} />
             )}
 
             {postType === "mood" && (
@@ -372,9 +375,7 @@ export function CreatePost() {
             )}
 
             {postType === "gif" && (
-              <GifSelector
-                onGifSelect={(gifUrl) => setSelectedGif(gifUrl)}
-              />
+              <GifSelector onGifSelect={(gifUrl) => setSelectedGif(gifUrl)} />
             )}
 
             {selectedDocument && (
@@ -405,7 +406,7 @@ export function CreatePost() {
 
                   <button
                     onClick={handlePost}
-                    className="flex-1 py-2 bg-[#ec7211] hover:bg-[#ff8c3a] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-2 bg-[#004f9f] hover:bg-[#ff8c3a] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!isPostValid()}
                   >
                     Publicar

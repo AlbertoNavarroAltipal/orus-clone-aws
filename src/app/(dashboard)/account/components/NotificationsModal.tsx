@@ -87,7 +87,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
               <label
                 htmlFor="emailToggle"
                 className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${
-                  emailEnabled ? "bg-[#ec7211]" : "bg-gray-300"
+                  emailEnabled ? "bg-[#004f9f]" : "bg-gray-300"
                 }`}
               ></label>
             </div>
@@ -103,7 +103,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("email", "security", e.target.checked)
                 }
                 disabled={!emailEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="emailSecurity"
@@ -121,7 +121,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("email", "marketing", e.target.checked)
                 }
                 disabled={!emailEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="emailMarketing"
@@ -139,7 +139,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("email", "updates", e.target.checked)
                 }
                 disabled={!emailEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="emailUpdates"
@@ -157,7 +157,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("email", "reports", e.target.checked)
                 }
                 disabled={!emailEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="emailReports"
@@ -185,7 +185,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
               <label
                 htmlFor="pushToggle"
                 className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${
-                  pushEnabled ? "bg-[#ec7211]" : "bg-gray-300"
+                  pushEnabled ? "bg-[#004f9f]" : "bg-gray-300"
                 }`}
               ></label>
             </div>
@@ -201,7 +201,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("push", "security", e.target.checked)
                 }
                 disabled={!pushEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="pushSecurity"
@@ -219,7 +219,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("push", "marketing", e.target.checked)
                 }
                 disabled={!pushEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="pushMarketing"
@@ -237,7 +237,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("push", "updates", e.target.checked)
                 }
                 disabled={!pushEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="pushUpdates"
@@ -255,7 +255,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   handleTogglePreference("push", "reports", e.target.checked)
                 }
                 disabled={!pushEnabled}
-                className="h-4 w-4 text-[#ec7211] focus:ring-[#ec7211] border-gray-300 rounded"
+                className="h-4 w-4 text-[#004f9f] focus:ring-[#004f9f] border-gray-300 rounded"
               />
               <label
                 htmlFor="pushReports"

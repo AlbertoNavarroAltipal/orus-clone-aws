@@ -13,7 +13,7 @@ import useUserData from "@/hooks/useUserData";
  * Permite visualizar y editar los datos personales
  */
 const ProfilePanel: React.FC = () => {
-  const { userData, updateUserData } = useUserData();
+  const { userData, loading, error } = useUserData();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -53,7 +53,7 @@ const ProfilePanel: React.FC = () => {
         {!isEditingProfile && (
           <button
             onClick={() => setIsEditingProfile(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#ec7211] hover:bg-[#dd6b10] focus:outline-none"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#004f9f] hover:bg-[#dd6b10] focus:outline-none"
           >
             <Edit className="mr-2 h-4 w-4" />
             Editar Perfil
@@ -69,7 +69,7 @@ const ProfilePanel: React.FC = () => {
           isSaving={isSaving}
         />
       ) : (
-        <ProfileCard userData={userData} />
+        <ProfileCard userData={userData} loading={loading} error={error} />
       )}
     </div>
   );

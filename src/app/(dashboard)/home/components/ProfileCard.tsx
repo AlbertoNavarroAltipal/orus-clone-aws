@@ -74,7 +74,7 @@ export function ProfileCard() {
             <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse blur opacity-75" />
             <div className="relative">
               <Image
-                src={session?.user?.image || defaultUser.image}
+                src={session?.user?.foto_perfil || defaultUser.image}
                 alt="Profile"
                 width={96}
                 height={96}

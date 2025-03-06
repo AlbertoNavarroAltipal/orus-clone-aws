@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   LinkIcon,
   Check,
+  MailCheck,
 } from "lucide-react";
 import client from "@/config/aws-config";
 import { toast } from "sonner";
@@ -43,6 +44,8 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ userData, onCancel }) => {
   const [pendingEmailUpdate, setPendingEmailUpdate] = useState<string | null>(
     null
   );
+  // Estado para el modal de error de verificación
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   // Estado para los valores del formulario
   const [formValues, setFormValues] = useState({
@@ -305,9 +308,26 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ userData, onCancel }) => {
 
       if ((error as any)?.errors) {
         const graphQLErrors = (error as any).errors;
+        let hasVerificationError = false;
+
         graphQLErrors.forEach((err: any) => {
-          errorMessage += ` ${err.message}`;
+          errorMessage += ` (${err.message})`;
+
+          // Verificar si es un error de verificación de correo
+          if (
+            err.message.includes(
+              "Variable 'verificacion_correo' has an invalid value"
+            )
+          ) {
+            hasVerificationError = true;
+          }
         });
+
+        // Si es un error de verificación, mostrar el modal especial
+        if (hasVerificationError) {
+          setShowVerificationModal(true);
+          return; // No mostrar el toast general de error
+        }
       }
 
       toast.error(errorMessage);
@@ -421,9 +441,28 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ userData, onCancel }) => {
 
       if ((error as any)?.errors) {
         const graphQLErrors = (error as any).errors;
+        let hasVerificationError = false;
+
         graphQLErrors.forEach((err: any) => {
           errorMessage += ` ${err.message}`;
+
+          // Verificar si es un error de verificación de correo
+          if (
+            err.message.includes(
+              "Variable 'verificacion_correo' has an invalid value"
+            )
+          ) {
+            hasVerificationError = true;
+          }
         });
+
+        // Si es un error de verificación, mostrar el modal especial
+        if (hasVerificationError) {
+          setShowVerificationModal(true);
+          setShowDniModal(false);
+          setPendingDniUpdate(null);
+          return; // No mostrar el toast general de error
+        }
       }
 
       toast.error(errorMessage);
@@ -537,9 +576,28 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ userData, onCancel }) => {
 
       if ((error as any)?.errors) {
         const graphQLErrors = (error as any).errors;
+        let hasVerificationError = false;
+
         graphQLErrors.forEach((err: any) => {
           errorMessage += ` ${err.message}`;
+
+          // Verificar si es un error de verificación de correo
+          if (
+            err.message.includes(
+              "Variable 'verificacion_correo' has an invalid value"
+            )
+          ) {
+            hasVerificationError = true;
+          }
         });
+
+        // Si es un error de verificación, mostrar el modal especial
+        if (hasVerificationError) {
+          setShowVerificationModal(true);
+          setShowEmailModal(false);
+          setPendingEmailUpdate(null);
+          return; // No mostrar el toast general de error
+        }
       }
 
       toast.error(errorMessage);
@@ -1103,6 +1161,56 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ userData, onCancel }) => {
                 ) : (
                   "Confirmar cambio"
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de verificación de correo */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#121e33] rounded-lg max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center text-blue-500 mb-4">
+              <MailCheck className="h-6 w-6 mr-2" />
+              <h3 className="text-lg font-medium">
+                Verificación de correo requerida
+              </h3>
+            </div>
+
+            <p className="mb-4 text-gray-700 dark:text-gray-300">
+              Para poder actualizar sus datos, es necesario que verifique su
+              dirección de correo electrónico.
+            </p>
+
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md mb-6">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <p className="font-medium mb-1">Para verificar su correo:</p>
+                  <ol className="list-decimal pl-5 space-y-1">
+                    <li>Revise su bandeja de entrada</li>
+                    <li>
+                      Busque un correo con el asunto "Verificación de cuenta"
+                    </li>
+                    <li>Haga clic en el enlace de verificación</li>
+                    <li>Una vez verificado, podrá actualizar sus datos</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-gray-600 dark:text-gray-400 text-sm italic mb-6">
+              Si no ha recibido el correo de verificación, puede solicitar uno
+              nuevo en la sección de seguridad de su cuenta.
+            </p>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowVerificationModal(false)}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+              >
+                Entendido
               </button>
             </div>
           </div>
